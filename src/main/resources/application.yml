@@ -1,9 +1,6 @@
 ---
 server:
   port: 9120
-  error:
-    whitelabel:
-      enabled: false
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/task_tracker

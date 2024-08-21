@@ -22,7 +22,6 @@ public class ProjectEntity {
     @GeneratedValue(strategy = GenerationType.SEQUENCE)
     Long id;
 
-    @Column(unique = true, nullable = false)
     String name;
 
     @Builder.Default

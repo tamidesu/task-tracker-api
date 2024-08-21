@@ -2,6 +2,7 @@ package kz.com.task.tracker.api.controllers;
 
 
 import jakarta.transaction.Transactional;
+import kz.com.task.tracker.api.controllers.helpers.ControllerHelper;
 import kz.com.task.tracker.api.dto.AckDto;
 import kz.com.task.tracker.api.dto.ProjectDto;
 import kz.com.task.tracker.api.exceptions.BadRequestException;
@@ -30,10 +31,12 @@ public class ProjectController {
 
     ProjectDtoFactory projectDtoFactory;
 
+    ControllerHelper controllerHelper;
+
     public static final String FETCH_PROJECT = "api/projects";
     public static final String CREATE_PROJECT = "api/projects";
-    public static final String EDIT_PROJECT = "api/projects/{projects_id}";
-    public static final String DELETE_PROJECT = "api/projects/{projects_id}";
+    public static final String EDIT_PROJECT = "api/projects/{project_id}";
+    public static final String DELETE_PROJECT = "api/projects/{project_id}";
 
     public static final String CREATE_OR_UPDATE_PROJECT = "api/projects";
 
@@ -45,8 +48,8 @@ public class ProjectController {
         prefixName = prefixName.filter(optionalPrefixName -> !optionalPrefixName.trim().isEmpty());
 
         Stream<ProjectEntity> projectEntityStream = prefixName
-                .map(projectRepository::StreamAllByName)
-                .orElseGet(projectRepository::StreamAll);
+                .map(projectRepository::streamAllByNameStartsWithIgnoreCase)
+                .orElseGet(projectRepository::streamAll);
 
         return projectEntityStream
                 .map(projectDtoFactory::makeProjectDto)
@@ -77,36 +80,37 @@ public class ProjectController {
 
     @PutMapping(CREATE_OR_UPDATE_PROJECT)
     public ProjectDto createOrUpdateProject(
-            @RequestParam(value = "project_id" , required = false) Optional<Long> project_id,
-            @RequestParam(value = "projectName",required = false) Optional<String> name
+            @RequestParam(value = "project_id" , required = false) Optional<Long> projectId,
+            @RequestParam(value = "project_name",required = false) Optional<String> projectName
     ){
-        name = name.filter(optionalPrefixName -> !optionalPrefixName.trim().isEmpty());
+        projectName = projectName.filter(optionalProjectName -> !optionalProjectName.trim().isEmpty());
 
-        boolean isCreate = !project_id.isPresent();
+        boolean isCreate = !projectId.isPresent();
 
-        final ProjectEntity projectEntity = project_id
-                .map(this::getProjectOrThrowException)
-                .orElseGet(() -> ProjectEntity.builder().build());
-
-        if(isCreate && name.isEmpty()) {
+        if(isCreate && !projectName.isPresent()) {
             throw new BadRequestException("Project name cannot be empty");
         }
 
-        name
-                .ifPresent(projectName -> {
+        final ProjectEntity projectEntity = projectId
+                .map(controllerHelper::getProjectOrThrowException)
+                .orElseGet(() -> ProjectEntity.builder().build());
 
-                    findByName(projectName)
+
+        projectName
+                .ifPresent(optionalProjectName -> {
+
+                    findByName(optionalProjectName)
                             .filter( anotherProject -> !Objects.equals(anotherProject.getId(), projectEntity.getId()) )
                             .ifPresent( project -> {
-                                throw new BadRequestException(String.format("Project \"%s\" already exists", projectName));
+                                throw new BadRequestException(String.format("Project \"%s\" already exists", optionalProjectName));
                             });
 
-                    projectEntity.setName(projectName);
+                    projectEntity.setName(optionalProjectName);
                 });
 
         final ProjectEntity savedProjectEntity = projectRepository.saveAndFlush(projectEntity);
 
-        return ProjectDto.builder().build();
+        return projectDtoFactory.makeProjectDto(savedProjectEntity  );
     }
 
     @PatchMapping(EDIT_PROJECT)
@@ -148,7 +152,7 @@ public class ProjectController {
             @PathVariable("project_id") Long projectId
     ) {
 
-        ProjectEntity projectEntity = getProjectOrThrowException(projectId);
+        controllerHelper.getProjectOrThrowException(projectId);
 
         projectRepository.deleteById(projectId);
 
