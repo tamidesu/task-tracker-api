@@ -69,7 +69,7 @@ public class TaskStateController {
                 throw new BadRequestException(String.format("Task state \"%s\" already exists.", taskStateName));
             }
 
-            if (!taskState.getRightTaskState().isPresent()) {
+            if (taskState.getRightTaskState().isEmpty()) {
                 optionalAnotherTaskState = Optional.of(taskState);
                 break;
             }
@@ -159,12 +159,12 @@ public class TaskStateController {
                 });
 
         Optional<TaskStateEntity> optionalNewRightTaskState;
-        if (!optionalNewLeftTaskState.isPresent()) {
+        if (optionalNewLeftTaskState.isEmpty()) {
 
             optionalNewRightTaskState = project
                     .getTaskStates()
                     .stream()
-                    .filter(anotherTaskState -> !anotherTaskState.getLeftTaskState().isPresent())
+                    .filter(anotherTaskState -> anotherTaskState.getLeftTaskState().isEmpty())
                     .findAny();
         } else {
 
